@@ -160,11 +160,10 @@ def get_config(args):
     ds_train = get_data(args.train, isTrain=True)
     ds_test = get_data(args.test, isTrain=False)
 
-    step_per_epoch = ds_train.size()
+    step_per_epochs = ds_train.size()
 
     return TrainConfig(
         dataflow=ds_train,
-        optimizer=tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True),
         callbacks=[
             ModelSaver(),
             HyperParamSetterWithFunc('learning_rate',
@@ -177,13 +176,13 @@ def get_config(args):
             #     InferenceRunner(ds_test, [ScalarStats('error')]), 1),
         ],
         model=Model(args.params),
-        step_per_epoch=step_per_epoch,
+        step_per_epochs=step_per_epochs,
         max_epoch=70,
     )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.')
+    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default=0)
     parser.add_argument('--load', help='load model')
     parser.add_argument('--params', help='path to the params file', default="params_text.json")
     parser.add_argument('--train', help='path to training lmdb', default="train_db")
