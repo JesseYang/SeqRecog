@@ -22,6 +22,15 @@ from mapper import *
 
 BATCH = 10
 
+class SkipInputRNNCell(tf.nn.rnn_cell.BasicRNNCell):
+    def __call__(self, inputs, state, scope=None):
+        """RNN skipping input projection: output = new_state = activation(input + U * state)."""
+        with tf.variable_scope(scope or type(self).__name__):  # "SkipInputRNNCell"
+            weights = tf.get_variable("Mat", [self._num_units, self._num_units], dtype=state.dtype)
+            state_proj = tf.matmul(state, weights)
+            output = self._activation(state_proj + inputs)
+            return output, output
+
 class RecogResult(Inferencer):
     def __init__(self, names, dict_path):
         if not isinstance(names, list):
