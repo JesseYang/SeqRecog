@@ -22,7 +22,7 @@ from mapper import *
 
 BATCH = 10
 
-class SkipInputRNNCell(tf.nn.rnn_cell.BasicRNNCell):
+class SkipInputRNNCell(tf.contrib.rnn.BasicRNNCell):
     def __call__(self, inputs, state, scope=None):
         """RNN skipping input projection: output = new_state = activation(input + U * state)."""
         with tf.variable_scope(scope or type(self).__name__):  # "SkipInputRNNCell"
