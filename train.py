@@ -22,8 +22,6 @@ from cfgs.config import cfg
 from ctc_data import Data, CTCBatchData
 from mapper import *
 
-BATCH = 10
-
 class SkipInputRNNCell(tf.contrib.rnn.core_rnn_cell.BasicRNNCell):
 # class SkipInputRNNCell(tf.contrib.rnn.BasicRNNCell):
     def __call__(self, inputs, state, scope=None):
@@ -71,8 +69,8 @@ class RecogResult(Inferencer):
 
 class Model(ModelDesc):
 
-    def __init__(self, batch_size=BATCH):
-        self.batch_size = batch_size
+    def __init__(self):
+        # self.batch_size = batch_size
 
     def _get_inputs(self):
         return [InputDesc(tf.float32, [None, cfg.input_height, None, cfg.input_channel], 'feat'),   # bxmaxseqx39
@@ -86,6 +84,8 @@ class Model(ModelDesc):
     def _build_graph(self, inputs):
         l, labelidx, labelvalue, labelshape, seqlen = inputs
         label = tf.SparseTensor(labelidx, labelvalue, labelshape)
+
+        self.batch_size = tf.shape(l)[0]
 
         # cnn part
         width_shrink = 0
@@ -164,7 +164,7 @@ class Model(ModelDesc):
         lr = get_scalar_var('learning_rate', 3e-4, summary=True)
         return tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True)
 
-def get_data(train_or_test):
+def get_data(train_or_test, batch_size):
     isTrain = train_or_test == 'train'
     ds = Data(train_or_test, shuffle=isTrain)
     # if isTrain:
@@ -187,15 +187,15 @@ def get_data(train_or_test):
     else:
         augmentors = []
     ds = AugmentImageComponent(ds, augmentors) 
-    ds = CTCBatchData(ds, BATCH)
+    ds = CTCBatchData(ds, batch_size, remainder=True)
     if isTrain:
         # ds = PrefetchDataZMQ(ds, min(6, multiprocessing.cpu_count()))
         ds = PrefetchDataZMQ(ds, 1)
     return ds
 
 def get_config(args):
-    ds_train = get_data("train")
-    ds_test = get_data("test")
+    ds_train = get_data("train", args.batch_size)
+    ds_test = get_data("test", args.batch_size)
 
     return TrainConfig(
         dataflow=ds_train,
@@ -223,7 +223,6 @@ if __name__ == '__main__':
     if args.gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
-    BATCH = args.batch_size
     logger.auto_set_dir()
 
     config = get_config(args)
