@@ -19,7 +19,7 @@ from tensorpack.tfutils.symbolic_functions import *
 from tensorpack.tfutils.summary import *
 
 from cfgs.config import cfg
-from ctc_data import Data, CTCBatchData
+from reader import Data, CTCBatchData
 from mapper import *
 
 class SkipInputRNNCell(tf.contrib.rnn.core_rnn_cell.BasicRNNCell):
@@ -70,6 +70,7 @@ class RecogResult(Inferencer):
 class Model(ModelDesc):
 
     def __init__(self):
+        pass
         # self.batch_size = batch_size
 
     def _get_inputs(self):
@@ -84,6 +85,7 @@ class Model(ModelDesc):
     def _build_graph(self, inputs):
         l, labelidx, labelvalue, labelshape, seqlen = inputs
         label = tf.SparseTensor(labelidx, labelvalue, labelshape)
+        l = l / 255.0 * 2 - 1
 
         self.batch_size = tf.shape(l)[0]
 
