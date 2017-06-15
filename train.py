@@ -22,14 +22,25 @@ from mapper import *
 
 BATCH = 10
 
-class SkipInputRNNCell(tf.nn.rnn_cell.BasicRNNCell):
+class SkipInputRNNCell(tf.contrib.rnn.core_rnn_cell.BasicRNNCell):
     def __call__(self, inputs, state, scope=None):
         """RNN skipping input projection: output = new_state = activation(input + U * state)."""
         with tf.variable_scope(scope or type(self).__name__):  # "SkipInputRNNCell"
             weights = tf.get_variable("Mat", [self._num_units, self._num_units], dtype=state.dtype)
             state_proj = tf.matmul(state, weights)
-            output = self._activation(state_proj + inputs)
-            return output, output
+            # output = self._activation(state_proj + inputs)
+            output = tf.clip_by_value(state_proj + inputs, 0, 20)
+        return output, output
+
+@layer_register()
+def BiRnn(x, cell_fw, cell_bw, seqlen, initial_fw=None, initial_bw=None):
+    if initial_fw == None:
+        initial_fw = cell_fw.zero_state(tf.shape(x)[0], tf.float32)
+    if initial_bw == None:
+        initial_bw = cell_bw.zero_state(tf.shape(x)[0], tf.float32)
+    x, _ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, x, seqlen, initial_fw, initial_bw, dtype=tf.float32)
+    x = tf.add(x[0], x[1], "add")
+    return x
 
 class RecogResult(Inferencer):
     def __init__(self, names, dict_path):
