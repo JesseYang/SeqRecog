@@ -6,6 +6,7 @@ cfg = edict()
 cfg.name = 'english'
 
 cfg.input_height = 10
+cfg.input_channel = 1
 cfg.label_size = 57
 
 cfg.cnn = edict()

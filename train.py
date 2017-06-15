@@ -15,17 +15,12 @@ from six.moves import map, range
 import json
 
 from tensorpack import *
-from tensorpack.tfutils.gradproc import *
-from tensorpack.utils.globvars import globalns as param
-import tensorpack.tfutils.symbolic_functions as symbf
-from ctc_data import CTCBatchData
+
+from cfgs.config import cfg
+from ctc_data import Data, CTCBatchData
 from mapper import *
 
 BATCH = 10
-
-# IMG_HEIGHT = 30
-INPUT_CHANNEL = 1
-
 
 class RecogResult(Inferencer):
     def __init__(self, names, dict_path):
@@ -33,7 +28,7 @@ class RecogResult(Inferencer):
             self.names = [names]
         else:
             self.names = names
-        self.mapper = Mapper(dict_path)
+        self.mapper = Mapper()
 
     def _get_output_tensors(self):
         return self.names
@@ -53,13 +48,11 @@ class RecogResult(Inferencer):
 
 class Model(ModelDesc):
 
-    def __init__(self, params_path, batch_size=BATCH):
-        with open(params_path, 'r') as f:
-            self.params = json.load(f)
+    def __init__(self, batch_size=BATCH):
         self.batch_size = batch_size
 
     def _get_inputs(self):
-        return [InputVar(tf.float32, [None, self.params['input_height'], None, INPUT_CHANNEL], 'feat'),   # bxmaxseqx39
+        return [InputVar(tf.float32, [None, cfg.input_height, None, cfg.input_channel], 'feat'),   # bxmaxseqx39
                 InputVar(tf.int64, None, 'labelidx'),  # label is b x maxlen, sparse
                 InputVar(tf.int32, None, 'labelvalue'),
                 InputVar(tf.int64, None, 'labelshape'),
@@ -74,19 +67,19 @@ class Model(ModelDesc):
         # cnn part
         width_shrink = 0
         with tf.variable_scope('cnn') as scope:
-            feature_height = self.params['input_height']
-            for i, kernel_height in enumerate(self.params["cnn"]["kernel_heights"]):
-                out_channel = self.params["cnn"]["channels"][i]
-                kernel_width = self.params["cnn"]["kernel_widths"][i]
+            feature_height = cfg.input_height
+            for i, kernel_height in enumerate(cfg.cnn.kernel_heights):
+                out_channel = cfg.cnn.channels[i]
+                kernel_width = cfg.cnn.kernel_widths[i]
                 l = Conv2D('conv.{}'.format(i),
                            l,
                            out_channel,
                            (kernel_height, kernel_width),
-                           self.params["cnn"]["padding"])
-                if self.params["cnn"]["with_bn"]:
+                           cfg.cnn.padding)
+                if cfg.cnn.with_bn:
                     l = BatchNorm('bn.{}'.format(i), l)
                 l = tf.clip_by_value(l, 0, 20, "clipped_relu.{}".format(i))
-                if self.params["cnn"]["padding"] == "VALID":
+                if cfg.cnn.padding == "VALID":
                     feature_height = feature_height - kernel_height + 1
                 width_shrink += kernel_width - 1
 
@@ -98,27 +91,27 @@ class Model(ModelDesc):
         l = tf.transpose(l, perm=[0, 2, 1, 3])
         l = tf.reshape(l, [self.batch_size, -1, feature_size])
         with tf.variable_scope('rnn') as scope:
-            for i in range(self.params["rnn"]["nbOfHiddenLayers"]):
+            for i in range(cfg.rnn.hidden_layers_no):
                 # for each rnn layer with sequence-wise batch normalization
                 # 1. do the linear projection
-                mat = tf.get_variable("linear.{}".format(i), [feature_size, self.params['rnn']['hiddenSize']], dtype=tf.float32)
+                mat = tf.get_variable("linear.{}".format(i), [feature_size, cfg.rnn.hidden_size], dtype=tf.float32)
                 l = tf.reshape(l, [-1, feature_size])
                 l = tf.matmul(l, mat)
                 # 2. sequence-wise batch normalization
                 l = BatchNorm('bn.{}'.format(i), l)
-                l = tf.reshape(l, [self.batch_size, -1, self.params['rnn']['hiddenSize']])
+                l = tf.reshape(l, [self.batch_size, -1, cfg.rnn.hidden_size])
                 # 3. rnn skipping input
-                cell_fw = SkipInputRNNCell(self.params['rnn']['hiddenSize'])
-                cell_bw = SkipInputRNNCell(self.params['rnn']['hiddenSize'])
+                cell_fw = SkipInputRNNCell(cfg.rnn.hidden_size)
+                cell_bw = SkipInputRNNCell(cfg.rnn.hidden_size)
                 l = BiRnn('bi_rnn.{}'.format(i), l, cell_fw, cell_bw, seqlen)
-                feature_size = self.params['rnn']['hiddenSize']
+                feature_size = cfg.rnn.hidden_size
 
         # fc part
-        l = tf.reshape(l, [-1, self.params['rnn']['hiddenSize']])
+        l = tf.reshape(l, [-1, cfg.rnn.hidden_size])
         output = BatchNorm('bn', l)
-        logits = FullyConnected('fc', output, self.params['label_size'], nl=tf.identity,
+        logits = FullyConnected('fc', output, cfg.label_size, nl=tf.identity,
                                 W_init=tf.truncated_normal_initializer(stddev=0.01))
-        logits = tf.reshape(logits, (self.batch_size, -1, self.params['label_size']))
+        logits = tf.reshape(logits, (self.batch_size, -1, cfg.label_size))
 
         # ctc output
         loss = tf.nn.ctc_loss(inputs=logits,
@@ -148,19 +141,38 @@ class Model(ModelDesc):
         lr = get_scalar_var('learning_rate', 3e-4, summary=True)
         return tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True)
 
-def get_data(path, isTrain):
-    ds = LMDBDataPoint(path)
-    ds = MapDataComponent(ds, lambda x: x / 255.0 - 0.5)
+def get_data(train_or_test):
+    isTrain = train_or_test == 'train'
+    ds = Data(train_or_test)
+    # if isTrain:
+    if False:
+        augmentors = [
+            imgaug.RandomOrderAug(
+                [imgaug.Brightness(30, clip=False),
+                 imgaug.Contrast((0.8, 1.2), clip=False),
+                 imgaug.Saturation(0.4),
+                 # rgb-bgr conversion
+                 imgaug.Lighting(0.1,
+                                 eigval=[0.2175, 0.0188, 0.0045][::-1],
+                                 eigvec=np.array(
+                                     [[-0.5675, 0.7192, 0.4009],
+                                      [-0.5808, -0.0045, -0.8140],
+                                      [-0.5836, -0.6948, 0.4203]],
+                                     dtype='float32')[::-1, ::-1]
+                                 )]),
+        ]
+    else:
+        augmentors = []
+    ds = AugmentImageComponent(ds, augmentors) 
     ds = CTCBatchData(ds, BATCH)
     if isTrain:
+        # ds = PrefetchDataZMQ(ds, min(6, multiprocessing.cpu_count()))
         ds = PrefetchDataZMQ(ds, 1)
     return ds
 
 def get_config(args):
-    ds_train = get_data(args.train, isTrain=True)
-    ds_test = get_data(args.test, isTrain=False)
-
-    step_per_epochs = ds_train.size()
+    ds_train = get_data("train")
+    ds_test = get_data("test")
 
     return TrainConfig(
         dataflow=ds_train,
@@ -175,30 +187,23 @@ def get_config(args):
             # PeriodicCallback(
             #     InferenceRunner(ds_test, [ScalarStats('error')]), 1),
         ],
-        model=Model(args.params),
-        step_per_epochs=step_per_epochs,
+        model=Model(),
         max_epoch=70,
     )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default=0)
+    parser.add_argument('--batch_size', help='batch size', default=10)
     parser.add_argument('--load', help='load model')
-    parser.add_argument('--params', help='path to the params file', default="params_text.json")
-    parser.add_argument('--train', help='path to training lmdb', default="train_db")
-    parser.add_argument('--test', help='path to testing lmdb', default="test_db")
     args = parser.parse_args()
     if args.gpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
+    BATCH = args.batch_size
     logger.auto_set_dir()
 
     config = get_config(args)
-
-    ds_train = get_data(args.train, isTrain=True)
-    ds_test = get_data(args.test, isTrain=False)
-
-    config = get_config(ds_train, ds_test, args.params)
     if args.load:
         config.session_init = SaverRestore(args.load)
     QueueInputTrainer(config).train()
