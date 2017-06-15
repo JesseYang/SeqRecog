@@ -15,6 +15,8 @@ from six.moves import map, range
 import json
 
 from tensorpack import *
+from tensorpack.tfutils.symbolic_functions import *
+from tensorpack.tfutils.summary import *
 
 from cfgs.config import cfg
 from ctc_data import Data, CTCBatchData
@@ -44,7 +46,7 @@ def BiRnn(x, cell_fw, cell_bw, seqlen, initial_fw=None, initial_bw=None):
     return x
 
 class RecogResult(Inferencer):
-    def __init__(self, names, dict_path):
+    def __init__(self, names):
         if not isinstance(names, list):
             self.names = [names]
         else:
@@ -73,11 +75,11 @@ class Model(ModelDesc):
         self.batch_size = batch_size
 
     def _get_inputs(self):
-        return [InputVar(tf.float32, [None, cfg.input_height, None, cfg.input_channel], 'feat'),   # bxmaxseqx39
-                InputVar(tf.int64, None, 'labelidx'),  # label is b x maxlen, sparse
-                InputVar(tf.int32, None, 'labelvalue'),
-                InputVar(tf.int64, None, 'labelshape'),
-                InputVar(tf.int32, [None], 'seqlen'),   # b
+        return [InputDesc(tf.float32, [None, cfg.input_height, None, cfg.input_channel], 'feat'),   # bxmaxseqx39
+                InputDesc(tf.int64, None, 'labelidx'),  # label is b x maxlen, sparse
+                InputDesc(tf.int32, None, 'labelvalue'),
+                InputDesc(tf.int64, None, 'labelshape'),
+                InputDesc(tf.int32, [None], 'seqlen'),   # b
                 ]
 
     # def _build_graph(self, input_vars):
@@ -164,7 +166,7 @@ class Model(ModelDesc):
 
 def get_data(train_or_test):
     isTrain = train_or_test == 'train'
-    ds = Data(train_or_test)
+    ds = Data(train_or_test, shuffle=isTrain)
     # if isTrain:
     if False:
         augmentors = [
@@ -201,7 +203,7 @@ def get_config(args):
             ModelSaver(),
             HyperParamSetterWithFunc('learning_rate',
                                      lambda e, x: x / 1.05 ),
-            InferenceRunner(ds_test, [RecogResult('prediction', 'dictionary_text')]),
+            InferenceRunner(ds_test, [RecogResult('prediction')]),
             # StatMonitorParamSetter('learning_rate', 'error',
             #                        lambda x: x * 0.2, 0, 5),
             # HumanHyperParamSetter('learning_rate'),
