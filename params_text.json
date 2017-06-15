@@ -1,0 +1,16 @@
+{
+  "input_height": 10,
+  "cnn": {
+    "padding": "SAME",
+    "channels": [32, 32, 32, 32, 64, 64],
+    "kernel_heights": [3, 3, 3, 3, 3, 3],
+    "kernel_widths": [3, 3, 3, 3, 3, 3],
+    "with_bn": true
+  },
+  "rnn": {
+    "hiddenSize": 660,
+    "nbOfHiddenLayers": 3,
+    "LSTM": false
+  },
+  "label_size": 57
+}

@@ -1,0 +1,8 @@
+text_dataset
+*db
+*db-lock
+.ipynb_checkpoints
+__pycache__
+crop_barcode
+text_*
+train_log
