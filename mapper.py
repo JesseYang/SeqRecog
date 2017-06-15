@@ -15,7 +15,7 @@ class Mapper(object):
         self.alphabet2token = {}
         self.token2alphabet = {}
 
-        for c_id, char in enumerate(cf.dictionary):
+        for c_id, char in enumerate(cfg.dictionary):
             self.alphabet2token[char] = c_id
             self.token2alphabet[c_id] = char
 

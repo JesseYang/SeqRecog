@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import misc
 
-from tensorpack import BatchData
+from tensorpack import *
 
 from mapper import Mapper
 from cfgs.config import cfg
@@ -14,7 +14,6 @@ def batch_feature(feats):
     for idx, feat in enumerate(feats):
         ret[idx, :, :feat.shape[1]] = feat
     return ret
-
 
 def sparse_label(labels):
     maxlen = max([len(k) for k in labels])
@@ -29,6 +28,12 @@ def sparse_label(labels):
     values = np.asarray(values)
     return (indices, values, shape)
 
+def get_imglist(fname):
+    with open(fname) as f:
+        content = f.readlines()
+    content = [ele.strip() for ele in content]
+    return content
+
 class Data(RNGDataFlow):
     def __init__(self, train_or_test, shuffle=True):
         assert train_or_test in ['train', 'test']
@@ -40,6 +45,8 @@ class Data(RNGDataFlow):
         for fname in fname_list:
             self.imglist.extend(get_imglist(fname))
         self.shuffle = shuffle
+
+        self.mapper = Mapper()
 
     def size(self):
         return len(self.imglist)
@@ -53,7 +60,7 @@ class Data(RNGDataFlow):
             label_path = img_path.split('.')[0] + ".txt"
             img = misc.imread(img_path, 'L')
             feat = np.expand_dims(img, axis=2)
-            with open(label_filename) as f:
+            with open(label_path) as f:
                 content = f.readlines()
             label = self.mapper.encode_string(content[0])
             yield [feat, label]
