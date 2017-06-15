@@ -1,14 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# File: ctcdata.py
-# Author: Jesse Yang <jesse.yang1985@gmail.com>
+import numpy as np
+from scipy import misc
 
 from tensorpack import BatchData
-import numpy as np
-from six.moves import range
 
-__all__ = ['CTCBatchData']
-
+from mapper import Mapper
+from cfgs.config import cfg
 
 def batch_feature(feats):
     # pad to the longest in the batch
@@ -33,6 +29,34 @@ def sparse_label(labels):
     values = np.asarray(values)
     return (indices, values, shape)
 
+class Data(RNGDataFlow):
+    def __init__(self, train_or_test, shuffle=True):
+        assert train_or_test in ['train', 'test']
+        fname_list = cfg.train_list if train_or_test == "train" else cfg.test_list
+        self.train_or_test = train_or_test
+        fname_list = [fname_list] if type(fname_list) is not list else fname_list
+
+        self.imglist = []
+        for fname in fname_list:
+            self.imglist.extend(get_imglist(fname))
+        self.shuffle = shuffle
+
+    def size(self):
+        return len(self.imglist)
+
+    def get_data(self):
+        idxs = np.arange(len(self.imglist))
+        if self.shuffle:
+            self.rng.shuffle(idxs)
+        for k in idxs:
+            img_path = self.imglist[k]
+            label_path = img_path.split('.')[0] + ".txt"
+            img = misc.imread(img_path, 'L')
+            feat = np.expand_dims(img, axis=2)
+            with open(label_filename) as f:
+                content = f.readlines()
+            label = self.mapper.encode_string(content[0])
+            yield [feat, label]
 
 class CTCBatchData(BatchData):
 
@@ -43,13 +67,13 @@ class CTCBatchData(BatchData):
         itr = self.ds.get_data()
         for _ in range(self.size()):
             feats = []
-            labs = []
+            labels = []
             for b in range(self.batch_size):
-                feat, lab = next(itr)
+                feat, label = next(itr)
                 feats.append(feat)
-                labs.append(lab)
+                labels.append(label)
             # yield [feats, labs]
             batchfeat = batch_feature(feats)
-            batchlab = sparse_label(labs)
+            batchlabel = sparse_label(labels)
             seqlen = np.asarray([k.shape[1] for k in feats])
-            yield [batchfeat, batchlab[0], batchlab[1], batchlab[2], seqlen]
+            yield [batchfeat, batchlabel[0], batchlabel[1], batchlabel[2], seqlen]

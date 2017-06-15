@@ -7,22 +7,17 @@ from tensorpack import BatchData
 import numpy as np
 from six.moves import range
 
-__all__ = ['Mapper']
-
+from cfgs.config import cfg
 
 class Mapper(object):
 
-    def __init__(self, dict_path):
-        self.dict_path = dict_path
+    def __init__(self):
         self.alphabet2token = {}
         self.token2alphabet = {}
 
-        with open(dict_path) as dict_file:
-            lines = dict_file.read().splitlines()
-
-        for lid, line in enumerate(lines):
-            self.alphabet2token[line] = lid
-            self.token2alphabet[lid] = line
+        for c_id, char in enumerate(cf.dictionary):
+            self.alphabet2token[char] = c_id
+            self.token2alphabet[c_id] = char
 
 
     def encode_string(self, line):
