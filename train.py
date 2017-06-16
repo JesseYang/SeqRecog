@@ -189,7 +189,7 @@ def get_data(train_or_test, batch_size):
     else:
         augmentors = []
     ds = AugmentImageComponent(ds, augmentors) 
-    ds = CTCBatchData(ds, batch_size, remainder=True)
+    ds = CTCBatchData(ds, batch_size)
     if isTrain:
         # ds = PrefetchDataZMQ(ds, min(6, multiprocessing.cpu_count()))
         ds = PrefetchDataZMQ(ds, 1)

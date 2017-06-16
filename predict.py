@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# File: train.py
-# Author: Jesse Yang <jesse.yang1985@gmail.com>
-
 import os
 import numpy as np
 from scipy import misc
@@ -34,15 +29,14 @@ def sequence_error_stat(target, prediction):
 
     return (d[len(target), len(prediction)], len(target))
 
-def predict_one(dict_path, img_path, predict_func, idx):
+def predict_one(img_path, predict_func, idx):
     img = misc.imread(img_path)
     seqlen = img.shape[1]
     img = np.expand_dims(np.expand_dims(img, axis=2), axis=0)
-    img = img / 255.0 - 0.5
 
     predictions = predict_func([img, [seqlen]])[0]
 
-    mapper = Mapper(dict_path)
+    mapper = Mapper()
     result = mapper.decode_output(predictions[0])
     if idx == None:
         logger.info(img_path)
@@ -64,7 +58,7 @@ def predict(args):
 
     err_num = 0
     tot_num = 0
-    if os.path.isfile(args.input_path):
+    if args.input_path is not None and os.path.isfile(args.input_path):
         # input is a file
         result = predict_one(args.input_path, predict_func, None)
         label_filename = args.input_path.replace("png", "txt")
@@ -75,12 +69,14 @@ def predict(args):
             (cur_err, cur_len) = sequence_error_stat(target, result)
             err_num = err_num + cur_err
             tot_num = tot_num + cur_len
-    if os.path.isdir(args.input_path):
+    if args.test_path is not None and os.path.isfile(args.test_path):
         # input is a text file
-        with open(args.input_path) as f:
+        with open(args.test_path) as f:
             content = f.readlines()
 
-        for idx, input_path in enumerate(content):
+        lines = [e.strip() for e in content]
+
+        for idx, input_path in enumerate(lines):
             result = predict_one(input_path, predict_func, idx + 1)
             label_filename = input_path.replace("png", "txt")
             if os.path.isfile(label_filename):
