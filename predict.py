@@ -53,8 +53,8 @@ def predict_one(dict_path, img_path, predict_func, idx):
     return result
 
 def predict(args):
-    sess_init = SaverRestore(args.model)
-    model = Model(args.params_path, 1)
+    sess_init = SaverRestore(args.model_path)
+    model = Model()
     predict_config = PredictConfig(session_init=sess_init,
                                    model=model,
                                    input_names=["feat", "seqlen"],
@@ -64,10 +64,10 @@ def predict(args):
 
     err_num = 0
     tot_num = 0
-    if os.path.isfile(args.input):
+    if os.path.isfile(args.input_path):
         # input is a file
-        result = predict_one(args.dict_path, args.input, predict_func, None)
-        label_filename = args.input.replace("png", "txt")
+        result = predict_one(args.input_path, predict_func, None)
+        label_filename = args.input_path.replace("png", "txt")
         if os.path.isfile(label_filename):
             with open(label_filename) as label_file:
                 content = label_file.readlines()
@@ -75,34 +75,30 @@ def predict(args):
             (cur_err, cur_len) = sequence_error_stat(target, result)
             err_num = err_num + cur_err
             tot_num = tot_num + cur_len
-    if os.path.isdir(args.input):
-        # input is a directory
-        for (dirpath, dirnames, filenames) in os.walk(args.input):
-            file_idx = 0
-            for filename in filenames:
-                if filename.endswith("png") == False:
-                    continue
-                filepath = os.path.join(args.input, filename)
-                result = predict_one(args.dict_path, filepath, predict_func, file_idx + 1)
-                label_filename = filepath.replace("png", "txt")
-                if os.path.isfile(label_filename):
-                    with open(label_filename) as label_file:
-                        content = label_file.readlines()
-                        target = content[0]
-                    (cur_err, cur_len) = sequence_error_stat(target, result)
-                    err_num = err_num + cur_err
-                    tot_num = tot_num + cur_len
-                file_idx = file_idx + 1
+    if os.path.isdir(args.input_path):
+        # input is a text file
+        with open(args.input_path) as f:
+            content = f.readlines()
+
+        for idx, input_path in enumerate(content):
+            result = predict_one(input_path, predict_func, idx + 1)
+            label_filename = input_path.replace("png", "txt")
+            if os.path.isfile(label_filename):
+                with open(label_filename) as label_file:
+                    content = label_file.readlines()
+                    target = content[0]
+                (cur_err, cur_len) = sequence_error_stat(target, result)
+                err_num = err_num + cur_err
+                tot_num = tot_num + cur_len
 
     logger.info("Character error rate is: " + str(err_num) + "/" + str(tot_num) + "(" + str(err_num * 1.0 / tot_num) + ")")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', help='path to the model file', required=True)
-    parser.add_argument('--params_path', help='path to the params file', default="params_text.json")
-    parser.add_argument('--dict_path', help='path to the dictionary file', default="dictionary_text")
-    parser.add_argument('--input', help='path to the input image', required=True)
+    parser.add_argument('--model_path', help='path to the model file', required=True)
+    parser.add_argument('--input_path', help='path to the input image')
+    parser.add_argument('--test_path', help='path of the test file')
 
     args = parser.parse_args()
     predict(args)
