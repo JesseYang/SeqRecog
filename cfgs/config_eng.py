@@ -7,7 +7,6 @@ cfg.name = 'english'
 
 cfg.input_height = 10
 cfg.input_channel = 1
-cfg.label_size = 57
 
 cfg.cnn = edict()
 cfg.cnn.padding = "SAME"
@@ -20,8 +19,6 @@ cfg.rnn = edict()
 cfg.rnn.hidden_size = 660
 cfg.rnn.hidden_layers_no = 3
 
-cfg.label_size = 57
-
 cfg.weight_decay = 5e-4
 
 cfg.dictionary = [" ", "\"", "$", "%", "&", "'", "(", ")", "*",
@@ -31,6 +28,8 @@ cfg.dictionary = [" ", "\"", "$", "%", "&", "'", "(", ")", "*",
                   "i", "j", "k", "l", "m", "n", "o", "p", "q",
                   "r", "s", "t", "u", "v", "w", "x", "y", "z",
                   "{", "}"]
+
+cfg.label_size = len(cfg.dictionary) + 1
 
 cfg.train_list = [cfg.name + "_train.txt"]
 cfg.test_list = cfg.name + "_test.txt"

@@ -6,8 +6,8 @@ cfg = edict()
 cfg.name = 'plate'
 
 cfg.input_height = 30
+cfg.input_width = int(440 / 140 * cfg.input_height)
 cfg.input_channel = 1
-cfg.label_size = 57
 
 cfg.cnn = edict()
 cfg.cnn.padding = "SAME"
@@ -20,17 +20,16 @@ cfg.rnn = edict()
 cfg.rnn.hidden_size = 660
 cfg.rnn.hidden_layers_no = 3
 
-cfg.label_size = 57
-
 cfg.weight_decay = 5e-4
 
-cfg.dictionary = [" ", "\"", "$", "%", "&", "'", "(", ")", "*",
-                  "-", ".", "/", "0", "1", "2", "3", "4", "5",
-                  "6", "7", "8", "9", ":", "<", ">", "?", "[",
-                  "]", "a", "b", "c", "d", "e", "f", "g", "h",
-                  "i", "j", "k", "l", "m", "n", "o", "p", "q",
-                  "r", "s", "t", "u", "v", "w", "x", "y", "z",
-                  "{", "}"]
+cfg.dictionary = ["京", "津", "沪", "渝", "冀", "豫", "云", "辽", "黑", "湘",
+                  "皖", "鲁", "新", "苏", "浙", "赣", "鄂", "桂", "甘", "晋",
+                  "蒙", "陕", "吉", "闽", "贵", "粤", "青", "藏", "川", "宁",
+                  "琼", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+                  "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M",
+                  "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+
+cfg.label_size = len(cfg.dictionary) + 1
 
 cfg.train_list = [cfg.name + "_train.txt"]
 cfg.test_list = cfg.name + "_test.txt"

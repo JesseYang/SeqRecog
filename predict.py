@@ -2,11 +2,15 @@ import os
 import numpy as np
 from scipy import misc
 import argparse
+import cv2
 
 from tensorpack import *
 
 from train import Model
 from mapper import *
+from cfgs.config import cfg
+
+import pdb
 
 def sequence_error_stat(target, prediction):
     d = np.zeros([len(target) + 1, len(prediction) + 1])
@@ -30,7 +34,13 @@ def sequence_error_stat(target, prediction):
     return (d[len(target), len(prediction)], len(target))
 
 def predict_one(img_path, predict_func, idx):
-    img = misc.imread(img_path)
+    img = misc.imread(img_path, 'L')
+    if img.shape[0] != cfg.input_height:
+        if cfg.input_width != None:
+            img = cv2.resize(img, (cfg.input_width, cfg.input_height))
+        else:
+            scale = cfg.input_height / img.shape[0]
+            img = cv2.resize(img, fx=scale, fy=scale)
     seqlen = img.shape[1]
     img = np.expand_dims(np.expand_dims(img, axis=2), axis=0)
 
@@ -38,12 +48,12 @@ def predict_one(img_path, predict_func, idx):
 
     mapper = Mapper()
     result = mapper.decode_output(predictions[0])
-    if idx == None:
-        logger.info(img_path)
-        logger.info(result)
-    else:
-        logger.info(str(idx) + ": " + img_path)
-        logger.info(str(idx) + ": " + result)
+    # if idx == None:
+    #     logger.info(img_path)
+    #     logger.info(result)
+    # else:
+    #     logger.info(str(idx) + ": " + img_path)
+    #     logger.info(str(idx) + ": " + result)
     return result
 
 def predict(args):
@@ -78,12 +88,17 @@ def predict(args):
 
         for idx, input_path in enumerate(lines):
             result = predict_one(input_path, predict_func, idx + 1)
-            label_filename = input_path.replace("png", "txt")
+            ext = input_path.split('.')[1]
+            label_filename = input_path.replace(ext, "txt")
             if os.path.isfile(label_filename):
                 with open(label_filename) as label_file:
                     content = label_file.readlines()
                     target = content[0]
                 (cur_err, cur_len) = sequence_error_stat(target, result)
+                if cur_err > 0:
+                    logger.info(input_path)
+                    logger.info(target)
+                    logger.info(result)
                 err_num = err_num + cur_err
                 tot_num = tot_num + cur_len
 
