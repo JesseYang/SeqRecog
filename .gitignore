@@ -9,3 +9,4 @@ train_log
 *.txt
 plate_images
 plate_recog
+*.jpg
