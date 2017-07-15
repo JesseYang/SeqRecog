@@ -96,10 +96,9 @@ class Data(RNGDataFlow):
                     img = dst[crop_h_start:crop_h_start + crop_h, crop_w_start:crop_w_start + crop_w, :]
                 if height == 184 and width == 577 and np.random.rand() > 0.2:
                     # blur the img
-                    kernel_size = int(np.random.rand() * 30)
-                    if kernel_size > 3:
-                        kernel = np.ones((kernel_size, kernel_size),np.float32) / kernel_size / kernel_size
-                        img = cv2.filter2D(img, -1, kernel)
+                    kernel_size = np.max([5, int(np.random.rand() * 20)])
+                    kernel = np.ones((kernel_size, kernel_size),np.float32) / kernel_size / kernel_size
+                    img = cv2.filter2D(img, -1, kernel)
 
             if cfg.input_width != None:
                 img = cv2.resize(img, (cfg.input_width, cfg.input_height))
