@@ -11,11 +11,9 @@ cfg.input_channel = 3
 
 cfg.cnn = edict()
 cfg.cnn.padding = "VALID"
-cfg.cnn.channels = [32, 32, 32, 32, 32, 64, 64, 64, 64, 64]
-# cfg.cnn.kernel_heights = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
-# cfg.cnn.kernel_widths = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
-cfg.cnn.kernel_heights = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
-cfg.cnn.kernel_widths = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+cfg.cnn.channels = [32, 32, 32, 32, 32, 32, 64, 64, 64, 64, 64, 64]
+cfg.cnn.kernel_heights = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+cfg.cnn.kernel_widths = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
 cfg.cnn.with_bn = True
 
 cfg.rnn = edict()

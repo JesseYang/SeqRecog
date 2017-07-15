@@ -84,105 +84,38 @@ class Model(ModelDesc):
 
     # def _build_graph(self, input_vars):
     def _build_graph(self, inputs):
-        image, labelidx, labelvalue, labelshape, seqlen = inputs
-        tf.summary.image('input_img', image)
+        l, labelidx, labelvalue, labelshape, seqlen = inputs
+        tf.summary.image('input_img', l)
         label = tf.SparseTensor(labelidx, labelvalue, labelshape)
         # l = l / 255.0 * 2 - 1
 
-        self.batch_size = tf.shape(image)[0]
-
-        def shortcut(l, n_in, n_out, stride):
-            if n_in != n_out:
-                return Conv2D('convshortcut', l, n_out, 1, stride=stride)
-            else:
-                return l
-
-        def basicblock(l, ch_out, stride, preact):
-            ch_in = l.get_shape().as_list()[1]
-            if preact == 'both_preact':
-                l = BNReLU('preact', l)
-                input = l
-            elif preact != 'no_preact':
-                input = l
-                l = BNReLU('preact', l)
-            else:
-                input = l
-            l = Conv2D('conv1', l, ch_out, 3, stride=stride, nl=BNReLU)
-            l = Conv2D('conv2', l, ch_out, 3)
-            return l + shortcut(input, ch_in, ch_out, stride)
-
-        def bottleneck(l, ch_out, stride, preact):
-            ch_in = l.get_shape().as_list()[1]
-            if preact == 'both_preact':
-                l = BNReLU('preact', l)
-                input = l
-            elif preact != 'no_preact':
-                input = l
-                l = BNReLU('preact', l)
-            else:
-                input = l
-            l = Conv2D('conv1', l, ch_out, 1, nl=BNReLU)
-            l = Conv2D('conv2', l, ch_out, 3, stride=stride, nl=BNReLU)
-            l = Conv2D('conv3', l, ch_out * 4, 1)
-            return l + shortcut(input, ch_in, ch_out * 4, stride)
-
-        def layer(l, layername, block_func, features, count, stride, first=False):
-            with tf.variable_scope(layername):
-                with tf.variable_scope('block0'):
-                    l = block_func(l, features, stride,
-                                   'no_preact' if first else 'both_preact')
-                for i in range(1, count):
-                    with tf.variable_scope('block{}'.format(i)):
-                        l = block_func(l, features, 1, 'default')
-                return l
-
-        net_cfg = {
-            18: ([2, 2, 2, 2], basicblock),
-            34: ([3, 4, 6, 3], basicblock),
-            50: ([3, 4, 6, 3], bottleneck),
-            101: ([3, 4, 23, 3], bottleneck)
-        }
-        defs, block_func = net_cfg[18]
-
-        with argscope(Conv2D, nl=tf.identity, use_bias=False, padding='SAME',
-                      W_init=variance_scaling_initializer(mode='FAN_OUT')), \
-                argscope([Conv2D, BatchNorm], data_format='NHWC'):
-            feature = (LinearWrap(image)
-                      .apply(layer, 'group0', block_func, 64, defs[0], 1, first=True)
-                      .apply(layer, 'group1', block_func, 128, defs[1], 2)
-                      .apply(layer, 'group2', block_func, 256, defs[2], 2)
-                      .apply(layer, 'group3', block_func, 512, defs[3], 2)
-                      .BNReLU('bnlast')())
-
-        seqlen = tf.tile([20], [self.batch_size])
-        # feature_size = feature.get_shape()[1] * feature.get_shape()[3]
-        feature_size = 7 * 512
+        self.batch_size = tf.shape(l)[0]
 
         # cnn part
-        # width_shrink = 0
-        # with tf.variable_scope('cnn') as scope:
-        #     feature_height = cfg.input_height
-        #     for i, kernel_height in enumerate(cfg.cnn.kernel_heights):
-        #         out_channel = cfg.cnn.channels[i]
-        #         kernel_width = cfg.cnn.kernel_widths[i]
-        #         l = Conv2D('conv.{}'.format(i),
-        #                    l,
-        #                    out_channel,
-        #                    (kernel_height, kernel_width),
-        #                    cfg.cnn.padding)
-        #         if cfg.cnn.with_bn:
-        #             l = BatchNorm('bn.{}'.format(i), l)
-        #         l = tf.clip_by_value(l, 0, 20, "clipped_relu.{}".format(i))
-        #         if cfg.cnn.padding == "VALID":
-        #             feature_height = feature_height - kernel_height + 1
-        #         width_shrink += kernel_width - 1
+        width_shrink = 0
+        with tf.variable_scope('cnn') as scope:
+            feature_height = cfg.input_height
+            for i, kernel_height in enumerate(cfg.cnn.kernel_heights):
+                out_channel = cfg.cnn.channels[i]
+                kernel_width = cfg.cnn.kernel_widths[i]
+                l = Conv2D('conv.{}'.format(i),
+                           l,
+                           out_channel,
+                           (kernel_height, kernel_width),
+                           cfg.cnn.padding)
+                if cfg.cnn.with_bn:
+                    l = BatchNorm('bn.{}'.format(i), l)
+                l = tf.clip_by_value(l, 0, 20, "clipped_relu.{}".format(i))
+                if cfg.cnn.padding == "VALID":
+                    feature_height = feature_height - kernel_height + 1
+                width_shrink += kernel_width - 1
 
-        #     feature_size = feature_height * out_channel
+            feature_size = feature_height * out_channel
 
-        # seqlen = tf.subtract(seqlen, width_shrink)
+        seqlen = tf.subtract(seqlen, width_shrink)
 
         # rnn part
-        l = tf.transpose(feature, perm=[0, 2, 1, 3])
+        l = tf.transpose(l, perm=[0, 2, 1, 3])
         l = tf.reshape(l, [self.batch_size, -1, feature_size])
         with tf.variable_scope('rnn') as scope:
             for i in range(cfg.rnn.hidden_layers_no):
