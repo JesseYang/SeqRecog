@@ -38,12 +38,11 @@ def predict_one(img_path, predict_func, idx):
         img = misc.imread(img_path, 'L')
     else:
         img = misc.imread(img_path)
-    if img.shape[0] != cfg.input_height:
-        if cfg.input_width != None:
-            img = cv2.resize(img, (cfg.input_width, cfg.input_height))
-        else:
-            scale = cfg.input_height / img.shape[0]
-            img = cv2.resize(img, fx=scale, fy=scale)
+    if cfg.input_width != None:
+        img = cv2.resize(img, (cfg.input_width, cfg.input_height))
+    else:
+        scale = cfg.input_height / img.shape[0]
+        img = cv2.resize(img, fx=scale, fy=scale)
     seqlen = img.shape[1]
     if cfg.input_channel == 1:
         img = np.expand_dims(img, axis=2)

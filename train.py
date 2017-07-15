@@ -154,7 +154,7 @@ class Model(ModelDesc):
                       .apply(layer, 'group3', block_func, 512, defs[3], 2)
                       .BNReLU('bnlast')())
 
-        seqlen = feature.get_shape()[2]
+        seqlen = tf.tile([20], [self.batch_size])
         # feature_size = feature.get_shape()[1] * feature.get_shape()[3]
         feature_size = 7 * 512
 
@@ -206,9 +206,6 @@ class Model(ModelDesc):
         logits = FullyConnected('fc', output, cfg.label_size, nl=tf.identity,
                                 W_init=tf.truncated_normal_initializer(stddev=0.01))
         logits = tf.reshape(logits, (self.batch_size, -1, cfg.label_size))
-
-        import pdb
-        pdb.set_trace()
 
         # ctc output
         loss = tf.nn.ctc_loss(inputs=logits,
