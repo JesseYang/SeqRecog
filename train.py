@@ -75,7 +75,7 @@ class Model(ModelDesc):
         # self.batch_size = batch_size
 
     def _get_inputs(self):
-        return [InputDesc(tf.float32, [None, cfg.input_height, 157, cfg.input_channel], 'feat'),   # bxmaxseqx39
+        return [InputDesc(tf.float32, [None, cfg.input_height, None, cfg.input_channel], 'feat'),   # bxmaxseqx39
                 InputDesc(tf.int64, None, 'labelidx'),  # label is b x maxlen, sparse
                 InputDesc(tf.int32, None, 'labelvalue'),
                 InputDesc(tf.int64, None, 'labelshape'),
@@ -206,7 +206,7 @@ def get_config(args):
         callbacks=[
             ModelSaver(),
             ScheduledHyperParamSetter('learning_rate',
-                                      [(0, 1e-4), (60, 3e-5)]),
+                                      [(0, 1e-5), (5, 3e-5), (10, 6e-5), (15, 1e-4) , (120, 1e-5)]),
             InferenceRunner(ds_test, [RecogResult('prediction')]),
             # StatMonitorParamSetter('learning_rate', 'error',
             #                        lambda x: x * 0.2, 0, 5),
@@ -215,7 +215,7 @@ def get_config(args):
             #     InferenceRunner(ds_test, [ScalarStats('error')]), 1),
         ],
         model=Model(),
-        max_epoch=100,
+        max_epoch=200,
     )
 
 if __name__ == '__main__':

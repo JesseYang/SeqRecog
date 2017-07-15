@@ -75,7 +75,7 @@ def predict(args):
     if args.input_path is not None and os.path.isfile(args.input_path):
         # input is a file
         result = predict_one(args.input_path, predict_func, None)
-        label_filename = args.input_path.replace("png", "txt")
+        label_filename = args.input_path.replace("jpg", "txt")
         if os.path.isfile(label_filename):
             with open(label_filename) as label_file:
                 content = label_file.readlines()
@@ -83,6 +83,8 @@ def predict(args):
             (cur_err, cur_len) = sequence_error_stat(target, result)
             err_num = err_num + cur_err
             tot_num = tot_num + cur_len
+            logger.info(target)
+        logger.info(result)
     if args.test_path is not None and os.path.isfile(args.test_path):
         # input is a text file
         with open(args.test_path) as f:
