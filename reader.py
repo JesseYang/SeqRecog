@@ -11,7 +11,7 @@ def batch_feature(feats):
     # pad to the longest in the batch
     maxlen = max([k.shape[1] for k in feats])
     bsize = len(feats)
-    ret = np.zeros((bsize, feats[0].shape[0], maxlen, 1))
+    ret = np.zeros((bsize, feats[0].shape[0], maxlen, cfg.input_channel))
     for idx, feat in enumerate(feats):
         ret[idx, :, :feat.shape[1]] = feat
     return ret
@@ -59,14 +59,57 @@ class Data(RNGDataFlow):
         for k in idxs:
             img_path = self.imglist[k]
             label_path = img_path.split('.')[0] + ".txt"
-            img = misc.imread(img_path, 'RGB')
+            if cfg.input_channel == 1:
+                img = misc.imread(img_path, 'L')
+            else:
+                img = misc.imread(img_path)
+            if cfg.name == "plate":
+                # augmente standard plate images with prob. of 0.7
+                height, width, _ = img.shape
+                if height == 184 and width == 577 and np.random.rand() > 0.3:
+                    pad_ratio_w = 2
+                    pad_ratio_h = 2
+                    height_p = int(height * (1 + pad_ratio_h))
+                    width_p = int(width * (1 + pad_ratio_w))
+
+                    color = [int(np.random.rand() * 255), int(np.random.rand() * 255), int(np.random.rand() * 255)]
+                    pad_img = np.tile(color, height_p * width_p)
+                    pad_img = np.reshape(pad_img, (height_p, width_p, 3))
+                    pad_img = pad_img.astype(np.uint8)
+
+                    h_start = int(height * pad_ratio_h / 2)
+                    w_start = int(width * pad_ratio_w / 2)
+                    pad_img[h_start:h_start + height, w_start:w_start + width,:] = img
+
+                    # random angle from -10 degree to 10 degree
+                    angle = 20 * (np.random.rand() - 0.5)
+                    scale = np.random.rand() * 0.2 - 0.1 + 1 
+                    M = cv2.getRotationMatrix2D((width_p//2, height_p//2), angle, scale)
+                    dst = cv2.warpAffine(pad_img, M, (width_p, height_p))
+
+                    crop_h_ratio = 1.4
+                    crop_w_ratio = 1.2
+                    crop_h_start = int(height * pad_ratio_h / 2 - (crop_h_ratio - 1) / 2 * height + np.random.rand() * 30)
+                    crop_w_start = int(width * pad_ratio_w / 2 - (crop_w_ratio - 1) / 2 * width + np.random.rand() * 30)
+                    crop_h = int(height * crop_h_ratio)
+                    crop_w = int(width * crop_w_ratio)
+                    img = dst[crop_h_start:crop_h_start + crop_h, crop_w_start:crop_w_start + crop_w, :]
+                if height == 184 and width == 577:
+                    # blur the img
+                    kernel_size = np.max([7, int(np.random.rand() * 15)])
+                    kernel = np.ones((kernel_size, kernel_size),np.float32) / kernel_size / kernel_size
+                    img = cv2.filter2D(img, -1, kernel)
+
             if img.shape[0] != cfg.input_height:
                 if cfg.input_width != None:
                     img = cv2.resize(img, (cfg.input_width, cfg.input_height))
                 else:
                     scale = cfg.input_height / img.shape[0]
                     img = cv2.resize(img, fx=scale, fy=scale)
-            feat = np.expand_dims(img, axis=2)
+            if cfg.input_channel == 1:
+                feat = np.expand_dims(img, axis=2)
+            else:
+                feat = img
             with open(label_path) as f:
                 content = f.readlines()
             label = self.mapper.encode_string(content[0])

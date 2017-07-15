@@ -5,20 +5,22 @@ cfg = edict()
 
 cfg.name = 'plate'
 
-cfg.input_height = 30
+cfg.input_height = 50
 cfg.input_width = int(440 / 140 * cfg.input_height)
-cfg.input_channel = 1
+cfg.input_channel = 3
 
 cfg.cnn = edict()
-cfg.cnn.padding = "SAME"
-cfg.cnn.channels = [32, 32, 32, 32, 64, 64]
-cfg.cnn.kernel_heights = [3, 3, 3, 3, 3, 3]
-cfg.cnn.kernel_widths = [3, 3, 3, 3, 3, 3]
+cfg.cnn.padding = "VALID"
+cfg.cnn.channels = [32, 32, 32, 32, 32, 64, 64, 64, 64, 64]
+# cfg.cnn.kernel_heights = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+# cfg.cnn.kernel_widths = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+cfg.cnn.kernel_heights = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+cfg.cnn.kernel_widths = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
 cfg.cnn.with_bn = True
 
 cfg.rnn = edict()
 cfg.rnn.hidden_size = 660
-cfg.rnn.hidden_layers_no = 3
+cfg.rnn.hidden_layers_no = 0
 
 cfg.weight_decay = 5e-4
 
