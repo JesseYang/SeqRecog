@@ -101,8 +101,8 @@ def predict(args):
                     content = label_file.readlines()
                     target = content[0]
                 (cur_err, cur_len) = sequence_error_stat(target, result)
+                logger.info(input_path)
                 if cur_err > 0:
-                    logger.info(input_path)
                     logger.info(target)
                     logger.info(result)
                 err_num = err_num + cur_err
