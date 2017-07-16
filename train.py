@@ -174,6 +174,7 @@ def get_data(train_or_test, batch_size):
     # if isTrain:
     if isTrain:
         augmentors = [
+            imgaug.ToFloat32(),
             imgaug.RandomOrderAug(
                 [imgaug.Brightness(30, clip=False),
                  imgaug.Contrast((0.8, 1.2), clip=False),
@@ -188,7 +189,9 @@ def get_data(train_or_test, batch_size):
                  #                     dtype='float32')[::-1, ::-1]
                  #                 )]),
                 ]),
-                GaussianNoise(5)
+            imgaug.GaussianNoise(5),
+            imgaug.Clip(),
+            imgaug.ToUint8()
         ]
     else:
         augmentors = []
