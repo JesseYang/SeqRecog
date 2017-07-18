@@ -197,8 +197,10 @@ def get_config(args):
         dataflow=ds_train,
         callbacks=[
             ModelSaver(),
-            HyperParamSetterWithFunc('learning_rate',
-                                     lambda e, x: x / 1.05 ),
+            ScheduledHyperParamSetter('learning_rate',
+                                      [(0, 1e-5), (3, 3e-5), (6, 6e-5), (10, 1e-4) , (60, 1e-5)]),
+            # HyperParamSetterWithFunc('learning_rate',
+            #                          lambda e, x: x / 1.05 ),
             # InferenceRunner(ds_test, [RecogResult('prediction')]),
             # StatMonitorParamSetter('learning_rate', 'error',
             #                        lambda x: x * 0.2, 0, 5),
