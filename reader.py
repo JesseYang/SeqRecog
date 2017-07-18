@@ -46,8 +46,6 @@ class Data(RNGDataFlow):
         for fname in fname_list:
             self.imglist.extend(get_imglist(fname))
 
-        print(self.imglist)
-
         self.shuffle = shuffle
 
         self.mapper = Mapper()

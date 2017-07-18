@@ -173,10 +173,12 @@ def get_data(train_or_test, batch_size):
     ds = Data(train_or_test, shuffle=isTrain)
     if isTrain:
         augmentors = [
+            imgaug.ToFloat32(),
             imgaug.RandomOrderAug(
                 [imgaug.Brightness(30, clip=False),
-                 imgaug.Contrast((0.8, 1.2), clip=False),
-                 imgaug.Saturation(0.4)]),
+                 imgaug.Contrast((0.8, 1.2), clip=False)]),
+            imgaug.Clip(),
+            imgaug.ToUint8(),
         ]
     else:
         augmentors = []
@@ -197,7 +199,7 @@ def get_config(args):
             ModelSaver(),
             HyperParamSetterWithFunc('learning_rate',
                                      lambda e, x: x / 1.05 ),
-            InferenceRunner(ds_test, [RecogResult('prediction')]),
+            # InferenceRunner(ds_test, [RecogResult('prediction')]),
             # StatMonitorParamSetter('learning_rate', 'error',
             #                        lambda x: x * 0.2, 0, 5),
             # HumanHyperParamSetter('learning_rate'),
@@ -211,7 +213,7 @@ def get_config(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default=0)
-    parser.add_argument('--batch_size', help='batch size', default=1)
+    parser.add_argument('--batch_size', help='batch size', default=64)
     parser.add_argument('--load', help='load model')
     args = parser.parse_args()
     if args.gpu:

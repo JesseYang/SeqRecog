@@ -27,5 +27,5 @@ cfg.dictionary = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
 
 cfg.label_size = len(cfg.dictionary) + 1
 
-cfg.train_list = [cfg.name + "_temp.txt"]
-cfg.test_list = cfg.name + "_temp.txt"
+cfg.train_list = [cfg.name + "_train.txt"]
+cfg.test_list = cfg.name + "_test.txt"
