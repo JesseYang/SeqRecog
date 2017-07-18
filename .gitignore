@@ -10,3 +10,5 @@ train_log
 plate_images
 plate_recog
 *.jpg
+image_contest_level_1*
+equ_recog
