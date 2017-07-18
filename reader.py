@@ -45,6 +45,9 @@ class Data(RNGDataFlow):
         self.imglist = []
         for fname in fname_list:
             self.imglist.extend(get_imglist(fname))
+
+        print(self.imglist)
+
         self.shuffle = shuffle
 
         self.mapper = Mapper()
@@ -59,7 +62,7 @@ class Data(RNGDataFlow):
         for k in idxs:
             img_path = self.imglist[k]
             label_path = img_path.split('.')[0] + ".txt"
-            img = misc.imread(img_path, 'RGB')
+            img = misc.imread(img_path, 'L')
             if img.shape[0] != cfg.input_height:
                 if cfg.input_width != None:
                     img = cv2.resize(img, (cfg.input_width, cfg.input_height))

@@ -188,7 +188,7 @@ def get_data(train_or_test, batch_size):
     return ds
 
 def get_config(args):
-    ds_train = get_data("train", args.batch_size)
+    ds_train = get_data("train", int(args.batch_size))
     ds_test = get_data("test", args.batch_size)
 
     return TrainConfig(
@@ -211,7 +211,7 @@ def get_config(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default=0)
-    parser.add_argument('--batch_size', help='batch size', default=64)
+    parser.add_argument('--batch_size', help='batch size', default=1)
     parser.add_argument('--load', help='load model')
     args = parser.parse_args()
     if args.gpu:
