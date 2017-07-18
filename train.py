@@ -87,7 +87,8 @@ class Model(ModelDesc):
         l, labelidx, labelvalue, labelshape, seqlen = inputs
         tf.summary.image('input_img', l)
         label = tf.SparseTensor(labelidx, labelvalue, labelshape)
-        # l = l / 255.0 * 2 - 1
+        l = tf.cast(l, tf.float32)
+        l = l / 255.0 * 2 - 1
 
         self.batch_size = tf.shape(l)[0]
 
