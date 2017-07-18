@@ -84,8 +84,10 @@ class Model(ModelDesc):
     # def _build_graph(self, input_vars):
     def _build_graph(self, inputs):
         l, labelidx, labelvalue, labelshape, seqlen = inputs
+        tf.summary.image('input_img', l)
         label = tf.SparseTensor(labelidx, labelvalue, labelshape)
-        # l = l / 255.0 * 2 - 1
+        l = tf.cast(l, tf.float32)
+        l = l / 255.0 * 2 - 1
 
         self.batch_size = tf.shape(l)[0]
 
@@ -132,7 +134,7 @@ class Model(ModelDesc):
                 feature_size = cfg.rnn.hidden_size
 
         # fc part
-        l = tf.reshape(l, [-1, cfg.rnn.hidden_size])
+        l = tf.reshape(l, [-1, feature_size])
         output = BatchNorm('bn', l)
         logits = FullyConnected('fc', output, cfg.label_size, nl=tf.identity,
                                 W_init=tf.truncated_normal_initializer(stddev=0.01))
@@ -169,22 +171,12 @@ class Model(ModelDesc):
 def get_data(train_or_test, batch_size):
     isTrain = train_or_test == 'train'
     ds = Data(train_or_test, shuffle=isTrain)
-    # if isTrain:
-    if False:
+    if isTrain:
         augmentors = [
             imgaug.RandomOrderAug(
                 [imgaug.Brightness(30, clip=False),
                  imgaug.Contrast((0.8, 1.2), clip=False),
-                 imgaug.Saturation(0.4),
-                 # rgb-bgr conversion
-                 imgaug.Lighting(0.1,
-                                 eigval=[0.2175, 0.0188, 0.0045][::-1],
-                                 eigvec=np.array(
-                                     [[-0.5675, 0.7192, 0.4009],
-                                      [-0.5808, -0.0045, -0.8140],
-                                      [-0.5836, -0.6948, 0.4203]],
-                                     dtype='float32')[::-1, ::-1]
-                                 )]),
+                 imgaug.Saturation(0.4)]),
         ]
     else:
         augmentors = []
@@ -219,7 +211,7 @@ def get_config(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default=0)
-    parser.add_argument('--batch_size', help='batch size', default=32)
+    parser.add_argument('--batch_size', help='batch size', default=64)
     parser.add_argument('--load', help='load model')
     args = parser.parse_args()
     if args.gpu:
