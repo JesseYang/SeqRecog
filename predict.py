@@ -87,6 +87,8 @@ def predict(args):
         lines = [e.strip() for e in content]
 
         for idx, input_path in enumerate(lines):
+            if idx > 0 and idx % 1000 == 0:
+                logger.info(str(idx) + "/" + str(len(lines)))
             result = predict_one(input_path, predict_func, idx + 1)
             ext = input_path.split('.')[1]
             label_filename = input_path.replace(ext, "txt")
