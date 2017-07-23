@@ -18,7 +18,7 @@ cfg.cnn.with_bn = True
 
 cfg.rnn = edict()
 cfg.rnn.hidden_size = 660
-cfg.rnn.hidden_layers_no = 0
+cfg.rnn.hidden_layers_no = 2
 
 cfg.weight_decay = 5e-4
 

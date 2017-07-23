@@ -22,27 +22,6 @@ from cfgs.config import cfg
 from reader import Data, CTCBatchData
 from mapper import *
 
-class SkipInputRNNCell(tf.contrib.rnn.core_rnn_cell.BasicRNNCell):
-# class SkipInputRNNCell(tf.contrib.rnn.BasicRNNCell):
-    def __call__(self, inputs, state, scope=None):
-        """RNN skipping input projection: output = new_state = activation(input + U * state)."""
-        with tf.variable_scope(scope or type(self).__name__):  # "SkipInputRNNCell"
-            weights = tf.get_variable("Mat", [self._num_units, self._num_units], dtype=state.dtype)
-            state_proj = tf.matmul(state, weights)
-            # output = self._activation(state_proj + inputs)
-            output = tf.clip_by_value(state_proj + inputs, 0, 20)
-        return output, output
-
-@layer_register()
-def BiRnn(x, cell_fw, cell_bw, seqlen, initial_fw=None, initial_bw=None):
-    if initial_fw == None:
-        initial_fw = cell_fw.zero_state(tf.shape(x)[0], tf.float32)
-    if initial_bw == None:
-        initial_bw = cell_bw.zero_state(tf.shape(x)[0], tf.float32)
-    x, _ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, x, seqlen, initial_fw, initial_bw, dtype=tf.float32)
-    x = tf.add(x[0], x[1], "add")
-    return x
-
 class RecogResult(Inferencer):
     def __init__(self, names):
         if not isinstance(names, list):
@@ -117,24 +96,16 @@ class Model(ModelDesc):
         # rnn part
         l = tf.transpose(l, perm=[0, 2, 1, 3])
         l = tf.reshape(l, [self.batch_size, -1, feature_size])
-        with tf.variable_scope('rnn') as scope:
-            for i in range(cfg.rnn.hidden_layers_no):
-                # for each rnn layer with sequence-wise batch normalization
-                # 1. do the linear projection
-                mat = tf.get_variable("linear.{}".format(i), [feature_size, cfg.rnn.hidden_size], dtype=tf.float32)
-                l = tf.reshape(l, [-1, feature_size])
-                l = tf.matmul(l, mat)
-                # 2. sequence-wise batch normalization
-                l = BatchNorm('bn.{}'.format(i), l)
-                l = tf.reshape(l, [self.batch_size, -1, cfg.rnn.hidden_size])
-                # 3. rnn skipping input
-                cell_fw = SkipInputRNNCell(cfg.rnn.hidden_size)
-                cell_bw = SkipInputRNNCell(cfg.rnn.hidden_size)
-                l = BiRnn('bi_rnn.{}'.format(i), l, cell_fw, cell_bw, seqlen)
-                feature_size = cfg.rnn.hidden_size
+
+        if cfg.rnn.hidden_layers_no > 0:
+            cell_fw = [tf.nn.rnn_cell.BasicLSTMCell(cfg.rnn.hidden_size) for _ in range(cfg.rnn.hidden_layers_no)]
+            cell_bw = [tf.nn.rnn_cell.BasicLSTMCell(cfg.rnn.hidden_size) for _ in range(cfg.rnn.hidden_layers_no)]
+            l = tf.contrib.rnn.stack_bidirectional_dynamic_rnn(cell_fw, cell_bw, l, dtype=tf.float32)
+            feature_size = cfg.rnn.hidden_size
 
         # fc part
-        l = tf.reshape(l, [-1, feature_size])
+        l = tf.reshape(l[0], [-1, 2 * feature_size])
+        # l = tf.reshape(l, [-1, feature_size])
         output = BatchNorm('bn', l)
         logits = FullyConnected('fc', output, cfg.label_size, nl=tf.identity,
                                 W_init=tf.truncated_normal_initializer(stddev=0.01))
@@ -153,6 +124,8 @@ class Model(ModelDesc):
         isTrain = get_current_tower_context().is_training
         predictions = tf.to_int32(tf.nn.ctc_greedy_decoder(inputs=logits,
                                                            sequence_length=seqlen)[0][0])
+        # predictions = tf.to_int32(tf.nn.ctc_beam_search_decoder(inputs=logits,
+        #                                                    sequence_length=seqlen)[0][0])
 
         dense_pred = tf.sparse_tensor_to_dense(predictions, name="prediction")
 
@@ -198,13 +171,13 @@ def get_config(args):
         callbacks=[
             ModelSaver(),
             ScheduledHyperParamSetter('learning_rate',
-                                      [(0, 1e-5), (3, 3e-5), (6, 6e-5), (10, 1e-4) , (60, 1e-5)]),
+                                      [(0, 1e-5), (3, 3e-5), (6, 6e-5), (10, 1e-4), (60, 1e-5)]),
             # HyperParamSetterWithFunc('learning_rate',
             #                          lambda e, x: x / 1.05 ),
             # InferenceRunner(ds_test, [RecogResult('prediction')]),
             # StatMonitorParamSetter('learning_rate', 'error',
             #                        lambda x: x * 0.2, 0, 5),
-            # HumanHyperParamSetter('learning_rate'),
+            HumanHyperParamSetter('learning_rate'),
             # PeriodicCallback(
             #     InferenceRunner(ds_test, [ScalarStats('error')]), 1),
         ],
