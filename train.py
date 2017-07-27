@@ -7,6 +7,7 @@ import tensorflow as tf
 import numpy as np
 import os
 import sys
+import multiprocessing
 import argparse
 from collections import Counter
 import operator
@@ -98,8 +99,8 @@ class Model(ModelDesc):
         l = tf.reshape(l, [self.batch_size, -1, feature_size])
 
         if cfg.rnn.hidden_layers_no > 0:
-            cell_fw = [tf.nn.rnn_cell.BasicLSTMCell(cfg.rnn.hidden_size) for _ in range(cfg.rnn.hidden_layers_no)]
-            cell_bw = [tf.nn.rnn_cell.BasicLSTMCell(cfg.rnn.hidden_size) for _ in range(cfg.rnn.hidden_layers_no)]
+            cell_fw = [tf.nn.rnn_cell.BasicRNNCell(cfg.rnn.hidden_size) for _ in range(cfg.rnn.hidden_layers_no)]
+            cell_bw = [tf.nn.rnn_cell.BasicRNNCell(cfg.rnn.hidden_size) for _ in range(cfg.rnn.hidden_layers_no)]
             l = tf.contrib.rnn.stack_bidirectional_dynamic_rnn(cell_fw, cell_bw, l, dtype=tf.float32)
             feature_size = cfg.rnn.hidden_size
 
@@ -122,10 +123,10 @@ class Model(ModelDesc):
         logits = tf.transpose(logits, [1, 0, 2])
 
         isTrain = get_current_tower_context().is_training
-        predictions = tf.to_int32(tf.nn.ctc_greedy_decoder(inputs=logits,
-                                                           sequence_length=seqlen)[0][0])
-        # predictions = tf.to_int32(tf.nn.ctc_beam_search_decoder(inputs=logits,
+        # predictions = tf.to_int32(tf.nn.ctc_greedy_decoder(inputs=logits,
         #                                                    sequence_length=seqlen)[0][0])
+        predictions = tf.to_int32(tf.nn.ctc_beam_search_decoder(inputs=logits,
+                                                           sequence_length=seqlen)[0][0])
 
         dense_pred = tf.sparse_tensor_to_dense(predictions, name="prediction")
 
@@ -159,12 +160,12 @@ def get_data(train_or_test, batch_size):
     ds = CTCBatchData(ds, batch_size)
     if isTrain:
         # ds = PrefetchDataZMQ(ds, min(6, multiprocessing.cpu_count()))
-        ds = PrefetchDataZMQ(ds, 1)
+        ds = PrefetchDataZMQ(ds, min(3, multiprocessing.cpu_count()))
     return ds
 
 def get_config(args):
     ds_train = get_data("train", int(args.batch_size))
-    ds_test = get_data("test", args.batch_size)
+    ds_test = get_data("test", int(args.batch_size))
 
     return TrainConfig(
         dataflow=ds_train,
@@ -172,11 +173,7 @@ def get_config(args):
             ModelSaver(),
             ScheduledHyperParamSetter('learning_rate',
                                       [(0, 1e-5), (3, 3e-5), (6, 6e-5), (10, 1e-4), (60, 1e-5)]),
-            # HyperParamSetterWithFunc('learning_rate',
-            #                          lambda e, x: x / 1.05 ),
             # InferenceRunner(ds_test, [RecogResult('prediction')]),
-            # StatMonitorParamSetter('learning_rate', 'error',
-            #                        lambda x: x * 0.2, 0, 5),
             HumanHyperParamSetter('learning_rate'),
             # PeriodicCallback(
             #     InferenceRunner(ds_test, [ScalarStats('error')]), 1),
@@ -199,4 +196,5 @@ if __name__ == '__main__':
     config = get_config(args)
     if args.load:
         config.session_init = SaverRestore(args.load)
-    QueueInputTrainer(config).train()
+    # QueueInputTrainer(config).train()
+    SyncMultiGPUTrainer(config).train()

@@ -3,6 +3,7 @@ import numpy as np
 from scipy import misc
 import argparse
 import cv2
+import tensorflow as tf
 
 from tensorpack import *
 
